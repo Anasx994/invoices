@@ -10,6 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="Invoices">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="theme-color" content="#1e293b">
+  <meta name="robots" content="noindex, nofollow">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -580,6 +581,91 @@
       color: #9ca3af;
     }
 
+    /* ── Login Screen ── */
+    #login-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #1e293b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    #login-screen.hidden { display: none; }
+
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px 36px;
+      width: 360px;
+      max-width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    .login-card h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 6px;
+    }
+
+    .login-card p {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+
+    .login-card input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 16px;
+      transition: border-color 0.15s;
+    }
+
+    .login-card input:focus { border-color: #1e293b; }
+
+    .login-card button {
+      width: 100%;
+      padding: 14px;
+      background: #1e293b;
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .login-card button:hover { background: #334155; }
+
+    .login-error {
+      color: #dc2626;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .btn-logout {
+      border: none;
+      background: none;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: underline;
+    }
+
+    .btn-logout:hover { color: #dc2626; }
+
     /* ── Print ── */
     @media print {
       #form-panel { display: none !important; }
@@ -658,10 +744,24 @@
   </style>
 </head>
 <body>
-  <div id="app">
+  <!-- Login Screen -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h2>Invoice Generator</h2>
+      <p>Enter password to continue</p>
+      <div class="login-error" id="login-error">Incorrect password</div>
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+      <button onclick="attemptLogin()">Login</button>
+    </div>
+  </div>
+
+  <div id="app" style="display:none;">
     <!-- Form Panel -->
     <div id="form-panel">
-      <h1>Invoice Generator</h1>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h1 style="margin-bottom:0;">Invoice Generator</h1>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+      </div>
 
       <div class="section-title">Invoice Settings</div>
       <div class="form-row">
@@ -738,6 +838,57 @@
   </div>
 
   <script>
+    // ── Authentication ──
+    var PASSWORD_HASH = '3fc09488bae7500091b0e059e880173e659732599a68602a564e978fbf0f22b5';
+
+    function hashPassword(password) {
+      var encoder = new TextEncoder();
+      var data = encoder.encode(password);
+      return crypto.subtle.digest('SHA-256', data).then(function(buffer) {
+        var array = Array.from(new Uint8Array(buffer));
+        return array.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+      });
+    }
+
+    function attemptLogin() {
+      var password = document.getElementById('login-password').value;
+      hashPassword(password).then(function(hash) {
+        if (hash === PASSWORD_HASH) {
+          localStorage.setItem('invoice_auth', hash);
+          showApp();
+        } else {
+          document.getElementById('login-error').style.display = 'block';
+          document.getElementById('login-password').value = '';
+          document.getElementById('login-password').focus();
+        }
+      });
+    }
+
+    function showApp() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app').style.display = 'flex';
+    }
+
+    function logout() {
+      localStorage.removeItem('invoice_auth');
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').style.display = 'none';
+    }
+
+    // Check if already logged in
+    (function() {
+      if (localStorage.getItem('invoice_auth') === PASSWORD_HASH) {
+        showApp();
+      }
+    })();
+
+    // Allow Enter key to submit login
+    document.getElementById('login-password').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') attemptLogin();
+    });
+
     // ── State ──
     let jobCounter = 0;
     let itemCounter = 0;
