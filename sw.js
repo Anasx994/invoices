@@ -1,4 +1,4 @@
-var CACHE_NAME = 'invoice-generator-v1';
+var CACHE_NAME = 'invoice-generator-v2';
 var URLS_TO_CACHE = [
   './',
   './index.html',
